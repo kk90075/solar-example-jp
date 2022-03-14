@@ -3,7 +3,6 @@ import astropy.units as u
 from astropy.coordinates import SkyCoord
 # from astropy.wcs import WCS
 
-
 import sunpy
 import sunpy.map
 from sunpy.data.sample import AIA_171_IMAGE, HMI_LOS_IMAGE
@@ -11,6 +10,10 @@ from sunpy.physics.differential_rotation import solar_rotate_coordinate
 
 import pfsspy
 import pfsspy.utils
+
+# newest reprojection function works with sunpy >=3.1, but this version
+# has some problem to load old synoptic map
+# from reproject_and_overlay import reproject_and_overlay
 
 # button click and put marker function
 def onclick(event):
@@ -47,6 +50,7 @@ synoptic_url = f"http://jsoc.stanford.edu/data/hmi/synoptic/hmi.Synoptic_Mr_smal
 synoptic_sample = download_file(synoptic_url, cache=False)
 
 smap = sunpy.map.Map(synoptic_sample)
+# smap = reproject_and_overlay(synoptic_sample, HMI_LOS_IMAGE)
 
 # the document says "if you have sunpy > 2.1 installed, this function is not needed"
 # but I got some error without following procedure...
