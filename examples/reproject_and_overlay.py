@@ -2,8 +2,6 @@ import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import astropy.units as u
-from astropy.coordinates import SkyCoord
-import astropy.constants as const
 
 import sunpy
 import sunpy.map
