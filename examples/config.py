@@ -1,0 +1,1 @@
+JSOC_EMAIL = "kihara@kusastro.kyoto-u.ac.jp"
