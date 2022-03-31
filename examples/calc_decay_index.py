@@ -1,25 +1,25 @@
+import datetime
+import glob
 import math
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy import interpolate
+
 import astropy
 import astropy.units as u
 import astropy.constants as const
 from astropy.coordinates import SkyCoord
-from scipy import interpolate
-
 import sunpy
 import sunpy.map
 from sunpy.physics.differential_rotation import solar_rotate_coordinate
 from sunpy.net import Fido, attrs as a
 from sunpy.coordinates.sun import carrington_rotation_number
-from astropy.utils.data import download_file
-
 import pfsspy
 import pfsspy.utils
 
-import datetime
-import glob
+# set your registered email to JSOC_EMAIL
+from config import *
 
 """
 should be fix:
@@ -31,23 +31,6 @@ so it would be better if one map is reprojected to be another map.
 """
 
 decay_list = []
-
-def open_syn_map(filename):
-    hdul = astropy.io.fits.open(filename)
-    hdul[0].verify('fix')
-    data = hdul[0].data
-    header = hdul[0].header
-    if header['CONTENT'] == 'Carrington Synoptic Chart':
-        header['CONTENT'] += ' Of Br Field'
-    header['cunit2'] = 'deg'
-    print("### here 1 ###", header['cdelt2'])
-    # should be fix
-    header['cdelt2'] = 0.005556 
-    header['cdelt2'] = 180 / np.pi * header['cdelt2'] / 4
-    print("### here 2 ###", header['cdelt2'])
-    header['cdelt1'] = np.abs(header['cdelt1'])
-    syn_map = sunpy.map.Map(np.where(np.isnan(data), 0, data), header)
-    return syn_map
 
 # button click and put marker function
 def onclick(event):
@@ -130,8 +113,7 @@ def get_data_local(num, wl, dateaia, datehmi):
     ap = glob.glob(aiapath)[0]
     return hp, ap
 
-def get_data_online(wl, dt):
-    JSOC_EMAIL = "kihara@kusastro.kyoto-u.ac.jp"
+def fido_get_aia_and_hmi(wl, dt):
     t_start = astropy.time.Time(datetime.datetime(*dt), scale='utc', format='datetime')
     q_aia = Fido.search(
         a.Time(t_start, t_start + 5 * u.min),
@@ -144,15 +126,14 @@ def get_data_online(wl, dt):
     q_hmi = Fido.search(
         a.Time(t_start, t_start + 5 * u.min),
         a.Instrument.hmi,
+        a.Physobs.los_magetic_field,
         # a.jsoc.Notify(JSOC_EMAIL),
-        a.Physobs.los_magnetic_field
     )
     d_hmi = Fido.fetch(q_hmi[0][0])
 
     return d_aia, d_hmi
 
-def get_synoptic_via_fido(dt):
-    JSOC_EMAIL = "kihara@kusastro.kyoto-u.ac.jp"
+def fido_get_synoptic(dt):
     t_syn = astropy.time.Time(dt, scale='utc')
     car_num = carrington_rotation_number(t_syn)
     q_syn = Fido.search(
@@ -174,8 +155,8 @@ def onclick_small(event):
     # transform the pixel to world (solar surface) coordinates
     center_coord = amap.pixel_to_world(x*u.pix, y*u.pix)
 
-# am, hm = get_data_online(1600, (2012, 3, 14, 15, 21))
-am, hm = get_data_online(1600, (2014, 10, 22, 14, 27))
+# am, hm = fido_get_aia_and_hmi(1600, (2012, 3, 14, 15, 21))
+am, hm = fido_get_aia_and_hmi(1600, (2014, 10, 22, 14, 27))
 hmap = sunpy.map.Map(hm).rotate(angle = 180.0*u.deg)
 amap = sunpy.map.Map(am)
 
@@ -233,7 +214,7 @@ plt.show()
 # except:
 #     synoptic_sample = download_file(synoptic_url, cache=False)
 
-smap = sunpy.map.Map(get_synoptic_via_fido(amap.date)).resample([720, 360] * u.pix)
+smap = sunpy.map.Map(fido_get_synoptic(amap.date)).resample([720, 360] * u.pix)
 # smap = open_syn_map(synoptic_sample).resample([720, 360] * u.pix)
 # smap = open_syn_map(synoptic_2192)
 print(smap.meta["CDELT2"])
