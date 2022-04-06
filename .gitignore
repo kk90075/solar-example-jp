@@ -1,1 +1,6 @@
+testspace/
 data/continuous/
+data/continuous_5min_figs/
+*.DS_Store
+.python-version
+__pycache__
