@@ -110,8 +110,8 @@ class DecayIdxCalculator:
         self.new_synmap = self._overlay_hmi_to_syn()
 
     # TODO
-    # the reprojection is almost done, but it takes ~1 minutes when you use
-    # full resolution AIA/HMI map, so it would be better for the reprojection
+    # the development of reprojection is almost done, but it takes ~1 minutes when you
+    # use full resolution AIA/HMI map, so it would be better for the reprojection
     # is applied only for cropped map ?
     def _hmi_to_aia(self):
         if self.map_downsample:
@@ -127,7 +127,7 @@ class DecayIdxCalculator:
         with propagate_with_solar_surface():
             warped_hmap = _hmap.reproject_to(out_wcs)
         newmap = HMIMap(warped_hmap.data, warped_hmap.meta)
-        newmap.meta['bunit'] = 'Gauss' # If it is 
+        newmap.meta['bunit'] = 'Gauss' # necessary for hmi contour
         return newmap
 
     # TODO
