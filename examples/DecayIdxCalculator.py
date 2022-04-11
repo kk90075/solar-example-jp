@@ -208,7 +208,7 @@ class DecayIdxCalculator:
         self.ax_avedi.cla()
         di_interp, key_height = self.interp_decay(di_ave)
         self.ax_avedi.vlines(x=key_height, ymin=0, ymax=1.5, color="red")
-        self.ax_avedi.text(key_height, 2.5, f"h_crit = {key_height:.1f}", horizontalalignment="center", color="red")
+        self.ax_avedi.text(key_height, 2.5, f"h_crit = {key_height:.1f} Mm", horizontalalignment="center", color="red")
         self.ax_avedi.plot(self.h_interp, di_interp, color="black")
         self.ax_avedi.errorbar(self.h_limited, di_ave, yerr=di_std, fmt="none", ecolor="black", elinewidth=1)
         self.ax_avedi.set_ylim([0, 4.5])
