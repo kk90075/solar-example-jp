@@ -1,5 +1,6 @@
 import datetime
 import glob
+import copy
 import math
 import matplotlib
 import matplotlib.pyplot as plt
@@ -18,11 +19,12 @@ import sunpy.map
 from sunpy.map.sources.sdo import HMIMap #, HMISynopticMap
 from sunpy.physics.differential_rotation import solar_rotate_coordinate
 from sunpy.net import Fido, attrs as a
-from sunpy.coordinates import Helioprojective, RotatedSunFrame, transform_with_sun_center, propagate_with_solar_surface
+from sunpy.coordinates import HeliographicCarrington, Helioprojective, RotatedSunFrame, transform_with_sun_center, propagate_with_solar_surface
 from sunpy.coordinates.sun import carrington_rotation_number
 
 import pfsspy
 import pfsspy.utils
+from reproject import reproject_interp
 
 # set your registered email to JSOC_EMAIL
 from config import *
@@ -107,32 +109,62 @@ class DecayIdxCalculator:
         else:
             self.new_aiamap = self.aiamap
         self.new_hmimap = self._hmi_to_aia()
-        self.new_synmap = self._overlay_hmi_to_syn()
+        # self.new_synmap = self._overlay_hmi_to_syn()
 
     # TODO
     # the development of reprojection is almost done, but it takes ~1 minutes when you
     # use full resolution AIA/HMI map, so it would be better for the reprojection
     # is applied only for cropped map ?
     def _hmi_to_aia(self):
-        if self.map_downsample:
-            _hmap = self.hmimap.resample([2048, 2048]*u.pix)
-        else:
-            _hmap = self.hmimap
-        out_frame = Helioprojective(observer='earth', obstime=self.new_aiamap.date)
-        out_center = SkyCoord(0*u.arcsec, 0*u.arcsec, frame=out_frame)
-        header = sunpy.map.make_fitswcs_header(self.new_aiamap.data.shape,
-                                            out_center,
-                                            scale=u.Quantity(_hmap.scale))
-        out_wcs = WCS(header)
-        with propagate_with_solar_surface():
-            warped_hmap = _hmap.reproject_to(out_wcs)
-        newmap = HMIMap(warped_hmap.data, warped_hmap.meta)
-        newmap.meta['bunit'] = 'Gauss' # necessary for hmi contour
-        return newmap
+        return self.hmimap
+        # if self.map_downsample:
+        #     _hmap = self.hmimap.resample([2048, 2048]*u.pix)
+        # else:
+        #     _hmap = self.hmimap
+        # out_frame = Helioprojective(observer='earth', obstime=self.new_aiamap.date)
+        # out_center = SkyCoord(0*u.arcsec, 0*u.arcsec, frame=out_frame)
+        # header = sunpy.map.make_fitswcs_header(self.new_aiamap.data.shape,
+        #                                     out_center,
+        #                                     scale=u.Quantity(_hmap.scale))
+        # out_wcs = WCS(header)
+        # with propagate_with_solar_surface():
+        #     warped_hmap = _hmap.reproject_to(out_wcs)
+        # newmap = HMIMap(warped_hmap.data, warped_hmap.meta)
+        # newmap.meta['bunit'] = 'Gauss' # necessary for hmi contour
+        # return newmap
 
     # TODO
     def _overlay_hmi_to_syn(self):
-        return self.synmap.resample([720, 360] * u.pix)
+        self.resampled_synmap = self.synmap.resample([720, 360] * u.pix)
+        return self.synmap.resample([720, 360] * u.pix) # DEBUG
+        # # set mask and get the small area in hmi
+        # all_hpc = sunpy.map.all_coordinates_from_map(self.hmimap)
+        # segment_mask_x = np.logical_or(all_hpc.Tx >= self.trc_h.Tx, all_hpc.Tx <= self.blc_h.Tx)
+        # segment_mask_y = np.logical_or(all_hpc.Ty >= self.trc_h.Ty, all_hpc.Ty <= self.blc_h.Ty)
+        # segment_mask = (segment_mask_x | segment_mask_y | np.isnan(all_hpc.Tx) | np.isnan(all_hpc.Ty))
+
+        # newdata = copy.deepcopy(self.hmimap.data)
+        # newdata[np.where(segment_mask==True)] = np.nan
+        # newmap = sunpy.map.Map(newdata, self.hmimap.meta)
+
+        # # reproject the cropped small hmi to synoptic
+        # # if you consider differential rotation in the same domain (hmi > hmi), 
+        # # you just need ``propagete_with_solar_surface'', but when the domain will be changed,
+        # # you seem to need ``transform_with_sun_center'' ... right?
+        # out_frame = HeliographicCarrington(observer='earth', obstime=self.resampled_synmap.date)
+        # rot_frame = RotatedSunFrame(base=out_frame, rotated_time=self.hmimap.date)
+        # out_shape = self.resampled_synmap.data.shape
+        # out_wcs = self.resampled_synmap.wcs
+        # out_wcs.coordinate_frame = rot_frame
+        # with transform_with_sun_center():
+        #     reprojected_data, footprint = reproject_interp(newmap, out_wcs, out_shape)
+
+        # repro_and_seg = copy.deepcopy(self.resampled_synmap.data)
+        # repro_and_seg = np.where(np.isnan(reprojected_data), repro_and_seg, reprojected_data)
+        # repro_and_seg = np.where(np.isnan(repro_and_seg), 0, repro_and_seg) # replace np.nan in the raw synoptic
+
+        # reprojected_map = sunpy.map.Map(repro_and_seg, self.resampled_synmap.meta)
+        # return reprojected_map
 
     def _onclick_preplot(self, event):
         # get clicked pixel coordinates
@@ -169,12 +201,15 @@ class DecayIdxCalculator:
         for i in range(di_click_point.shape[0]):
             for j in range(di_click_point.shape[1]):
                 self.decay_index_list.append(di_click_point[i,j])
-        self.ax_eachdi.plot(self.h_interp, self.interp_decay(np.average(di_click_point, axis=(0,1))))
+        self.ax_eachdi.plot(self.h_interp, self.interp_decay(np.average(di_click_point, axis=(0,1)))[0])
 
         di_ave = np.average(np.array(self.decay_index_list), axis=0)
         di_std = np.std(np.array(self.decay_index_list), axis=0)
         self.ax_avedi.cla()
-        self.ax_avedi.plot(self.h_interp, self.interp_decay(di_ave), color="black")
+        di_interp, key_height = self.interp_decay(di_ave)
+        self.ax_avedi.vlines(x=key_height, ymin=0, ymax=1.5, color="red")
+        self.ax_avedi.text(key_height, 2.5, f"h_crit = {key_height:.1f}", horizontalalignment="center", color="red")
+        self.ax_avedi.plot(self.h_interp, di_interp, color="black")
         self.ax_avedi.errorbar(self.h_limited, di_ave, yerr=di_std, fmt="none", ecolor="black", elinewidth=1)
         self.ax_avedi.set_ylim([0, 4.5])
         self.ax_avedi.set_title("Averaged Decay Index")
@@ -183,7 +218,10 @@ class DecayIdxCalculator:
         self.ax_avedi.grid()
         plt.draw()
 
-    def cal_decay(self, h_threshold):
+    def cal_decay(self, h_threshold, key_di):
+        self.new_synmap = self._overlay_hmi_to_syn()
+
+        self.key_di = key_di
         # 'h_threshold' is the maximal height to interpolate (unit: Mm)
         self.h_threshold = h_threshold
         self.decay_index_list = []
@@ -251,7 +289,15 @@ class DecayIdxCalculator:
     def interp_decay(self, di_in_question):
         f = interpolate.interp1d(self.h_limited, di_in_question, kind="cubic")
         di_interp = f(self.h_interp)
-        return di_interp
+        # HACK
+        # print(self.h_limited, di_in_question)
+        _di_interp_sort, _h_interp_sort = zip(*sorted(zip(di_in_question[1:], self.h_limited[1:])))
+        _di_interp_sort = [float(_) for _ in _di_interp_sort]
+        _h_interp_sort = [float(_) for _ in _h_interp_sort]
+        # print(_di_interp_sort, _h_interp_sort)
+        f_inv = interpolate.interp1d(_di_interp_sort, _h_interp_sort, kind="cubic")
+        key_height = f_inv(self.key_di)
+        return di_interp, key_height
 
     def preplot(self):
         fig_pre = plt.figure(figsize=(9,9))
@@ -314,7 +360,7 @@ if __name__ == '__main__':
 
     DIC = DecayIdxCalculator(nr, rss)
     # DIC.set_fido_file(1600, t_aia, t_hmi, downsample=True, showfilename=True)
-    DIC.set_local_file(amap, hmap, smap, downsample=True)
+    DIC.set_local_file(amap, hmap, smap, downsample=False)
     DIC.select_coordinates()
-    DIC.cal_decay(h_limit)
+    DIC.cal_decay(h_limit, key_di)
 
