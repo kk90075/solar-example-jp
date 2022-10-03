@@ -463,7 +463,7 @@ class DecayIdxCalculator:
         fig_di_each.savefig(f"{imgpath}each.pdf")
         fig_di_total.savefig(f"{imgpath}total.pdf")
 
-
+    # plot magnetic lines on the solar surface
     def plotmlines(self):
         c_lon, c_lat = map(int, self.log['crop_area']['center_coord'])
         height = int(self.log['crop_area']['height'])
@@ -520,14 +520,6 @@ class DecayIdxCalculator:
     def interp_decay(self, di_in_question):
         f = interpolate.interp1d(self.h_limited, di_in_question, kind="cubic")
         di_interp = f(self.h_interp)
-        # HACK
-        # print(self.h_limited, di_in_question)
-        # _di_interp_sort, _h_interp_sort = zip(*sorted(zip(di_in_question[1:], self.h_limited[1:])))
-        # _di_interp_sort = [float(_) for _ in _di_interp_sort]
-        # _h_interp_sort = [float(_) for _ in _h_interp_sort]
-        # # print(_di_interp_sort, _h_interp_sort)
-        # f_inv = interpolate.interp1d(_di_interp_sort, _h_interp_sort, kind="cubic")
-        # key_height = f_inv(self.key_di)
         f2 = lambda x: f(x) - self.key_di
         key_height = optimize.newton(f2, 1)
         return di_interp, key_height
@@ -606,29 +598,10 @@ class DecayIdxCalculator:
 
     
 if __name__ == '__main__':
-    # t_aia = datetime.datetime(2014, 10, 22, 14, 27) # (2012, 3, 14, 15, 21)
-    # t_aia = datetime.datetime(2017, 7, 14, 1, 1) # 191
-    # t_aia = datetime.datetime(2014, 4, 18, 12, 55) # 161
-    # t_aia = datetime.datetime(2011, 8, 4, 3, 32) # 024
-    # t_aia = datetime.datetime(2013, 9, 29, 21, 5) # 125
-    # t_hmi = t_aia
-    nr, rss = 100, 2.5
+    nr, rss = 100, 2
     h_limit = 200 # Mm
     key_di = 1.5
 
-    # 024
-    # hpath = "/Users/kihara/sunpy/data/hmi_m_45s_2011_08_04_03_33_00_tai_magnetogram.fits"
-    # apath = "/Users/kihara/sunpy/data/aia_lev1_1600a_2011_08_04t03_32_17_12z_image_lev1.fits"
-    # spath = "/Users/kihara/sunpy/data/hmi.synoptic_mr_polfil_720s.2113.Mr_polfil.fits"
-    # 125
-    # hpath = "/Users/kihara/sunpy/data/hmi_m_45s_2013_09_29_21_06_00_tai_magnetogram.fits"
-    # apath = "/Users/kihara/sunpy/data/aia_lev1_1600a_2013_09_29t21_05_04_12z_image_lev1.fits"
-    # spath = "/Users/kihara/sunpy/data/hmi.synoptic_mr_polfil_720s.2142.Mr_polfil.fits"
-    # 161
-    # hpath = "/Users/kihara/sunpy/data/hmi_m_45s_2014_04_18_12_56_15_tai_magnetogram.fits"
-    # apath = "/Users/kihara/sunpy/data/aia_lev1_1600a_2014_04_18t12_55_04_14z_image_lev1.fits"
-    # spath = "/Users/kihara/sunpy/data/hmi.synoptic_mr_polfil_720s.2149.Mr_polfil.fits"
-    # 191
     hpath = "/Users/kihara/sunpy/data/hmi_m_45s_2017_07_14_01_01_30_tai_magnetogram.fits"
     apath = "/Users/kihara/sunpy/data/aia_lev1_1600a_2017_07_14t01_03_50_12z_image_lev1.fits"
     spath = "/Users/kihara/sunpy/data/hmi.synoptic_mr_polfil_720s.2192.Mr_polfil.fits"
